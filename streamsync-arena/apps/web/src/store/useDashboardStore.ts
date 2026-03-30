@@ -9,7 +9,8 @@ const initialState: DashboardState = {
   voteSession: null,
   settings: defaultSettings,
   effectRules: defaultEffectRules,
-  matchCounter: 0
+  matchCounter: 0,
+  platformErrors: []
 };
 
 export const useDashboardStore = create<{
