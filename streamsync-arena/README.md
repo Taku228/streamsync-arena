@@ -60,3 +60,67 @@ npm run dev
 - E2E テスト
 - OBS WebSocket 連携
 - 本番用コメント / ゲーム API adapter
+
+## 実コメント連携（YouTube / Twitch）
+
+`apps/server/.env.example` をコピーし、`CHAT_PLATFORM` を切り替えるとコメント取得元を選べます。
+
+```bash
+cp apps/server/.env.example apps/server/.env
+```
+
+### YouTube Live
+
+- `CHAT_PLATFORM=youtube`
+- `YOUTUBE_API_KEY`
+- `YOUTUBE_LIVE_CHAT_ID`
+
+サーバーは YouTube Data API v3 の `liveChat/messages` をポーリングして、共通形式へ正規化してから既存ロジックへ流します。
+
+### Twitch
+
+- `CHAT_PLATFORM=twitch`
+- `TWITCH_CHANNEL`
+- `TWITCH_BOT_USERNAME`
+- `TWITCH_OAUTH_TOKEN`
+
+サーバーは `wss://irc-ws.chat.twitch.tv` に接続して IRC `PRIVMSG` を共通形式へ正規化して処理します。
+
+### 共通イベントモデル
+
+内部では `NormalizedChatMessage`（`platform / streamId / userId / message / badges ...`）に変換して、
+参加・投票・エフェクトの既存ビジネスロジックをそのまま動かしています。
+
+
+
+## 初心者向け: あなたがやること（手順）
+
+以下だけ実施すれば、まずは動作確認できます。
+
+1. 依存インストール
+   ```bash
+   npm install
+   ```
+2. 環境変数ファイル作成
+   ```bash
+   cp apps/server/.env.example apps/server/.env
+   ```
+3. 最初はモックで起動（おすすめ）
+   - `.env` の `CHAT_PLATFORM=mock` のまま
+   ```bash
+   npm run dev
+   ```
+4. YouTube で試す場合
+   - `.env` の `CHAT_PLATFORM=youtube`
+   - `YOUTUBE_API_KEY` と `YOUTUBE_LIVE_CHAT_ID` を設定
+5. Twitch で試す場合
+   - `.env` の `CHAT_PLATFORM=twitch`
+   - `TWITCH_CHANNEL` / `TWITCH_BOT_USERNAME` / `TWITCH_OAUTH_TOKEN` を設定
+6. OBS 連携を使う場合（任意）
+   - OBSで WebSocket Server を有効化
+   - `.env` の `OBS_WS_URL` / `OBS_WS_PASSWORD` を設定
+
+わからない値がある場合は、空欄のままで `mock` モードから始めて大丈夫です。
+
+
+> 注: 現在のOBS連携は「基礎実装」です。シーン切替と投票ソース表示ON/OFFを提供します。

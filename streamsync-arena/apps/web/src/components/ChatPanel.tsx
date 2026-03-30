@@ -10,7 +10,7 @@ export function ChatPanel({ messages }: { messages: ChatMessage[] }) {
             <strong>{message.userName}</strong>
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>{message.platform}</span>
           </div>
-          <div>{message.text}</div>
+          <div>{message.message}</div>
         </div>
       ))}
     </div>
