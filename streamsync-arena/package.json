@@ -1,0 +1,20 @@
+{
+  "name": "streamsync-arena",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,server -c auto \"npm run dev -w @streamsync/web\" \"npm run dev -w @streamsync/server\"",
+    "build": "npm run build -ws",
+    "lint": "npm run lint -ws",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  }
+}
