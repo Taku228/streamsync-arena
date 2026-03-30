@@ -55,6 +55,15 @@ type TwitchPrivmsg = {
   text: string;
 };
 
+function decodeTwitchTagValue(value: string): string {
+  return value
+    .replace(/\\s/g, ' ')
+    .replace(/\\:/g, ';')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\r/g, '\r')
+    .replace(/\\n/g, '\n');
+}
+
 export function parseTwitchPrivmsg(line: string): TwitchPrivmsg | null {
   if (!line.includes(' PRIVMSG ')) return null;
 
@@ -68,7 +77,7 @@ export function parseTwitchPrivmsg(line: string): TwitchPrivmsg | null {
       .filter(Boolean)
       .map((entry) => {
         const [key, value = ''] = entry.split('=');
-        return [key, value];
+        return [key, decodeTwitchTagValue(value)];
       })
   );
 
@@ -86,6 +95,8 @@ export function normalizeTwitchMessage(line: string, streamId: string): Normaliz
 
   const badges = parsed.tags.badges?.split(',').filter(Boolean) ?? [];
   const userId = parsed.tags['user-id'] || `twitch-${parsed.userName}`;
+  const parsedTimestamp = Number(parsed.tags['tmi-sent-ts']);
+  const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now();
 
   return {
     id: parsed.tags.id ?? nanoid(),
@@ -95,7 +106,7 @@ export function normalizeTwitchMessage(line: string, streamId: string): Normaliz
     userName: parsed.userName,
     displayName: parsed.tags['display-name'] || parsed.userName,
     message: parsed.text,
-    timestamp: Number(parsed.tags['tmi-sent-ts'] ?? Date.now()),
+    timestamp,
     badges,
     isModerator: badges.some((badge) => badge.startsWith('moderator/')),
     isSubscriber: badges.some((badge) => badge.startsWith('subscriber/')),

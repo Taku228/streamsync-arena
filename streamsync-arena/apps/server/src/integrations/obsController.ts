@@ -32,14 +32,16 @@ export type ObsControllerConfig = {
 
 export interface ObsController {
   connect(): Promise<void>;
+  disconnect(): Promise<void>;
   onVoteUpdated(active: boolean): Promise<void>;
-  onEffectTriggered(): Promise<void>;
+  onEffectTriggered(target?: { sceneName?: string; sourceName?: string; sourceEnabled?: boolean; actionType?: 'scene-switch' | 'source-toggle' | 'both' }): Promise<void>;
 }
 
 export class NoopObsController implements ObsController {
   async connect() {}
+  async disconnect() {}
   async onVoteUpdated() {}
-  async onEffectTriggered() {}
+  async onEffectTriggered(_target?: { sceneName?: string; sourceName?: string; sourceEnabled?: boolean; actionType?: 'scene-switch' | 'source-toggle' | 'both' }) {}
 }
 
 export class ObsWebSocketController implements ObsController {
@@ -77,6 +79,21 @@ export class ObsWebSocketController implements ObsController {
     this.connected = true;
   }
 
+  async disconnect() {
+    this.connected = false;
+    for (const item of this.pending.values()) {
+      item.reject(new Error('OBS socket closed'));
+    }
+    this.pending.clear();
+    if (!this.socket) return;
+    await new Promise<void>((resolve) => {
+      this.socket?.once('close', () => resolve());
+      this.socket?.close();
+      setTimeout(() => resolve(), 1000);
+    });
+    this.socket = undefined;
+  }
+
   async onVoteUpdated(active: boolean) {
     if (!this.connected || !this.config.voteSourceName) return;
     const sceneName = this.config.voteSceneName ?? this.config.effectScene;
@@ -90,9 +107,23 @@ export class ObsWebSocketController implements ObsController {
     });
   }
 
-  async onEffectTriggered() {
-    if (!this.connected || !this.config.effectScene) return;
-    await this.call('SetCurrentProgramScene', { sceneName: this.config.effectScene });
+  async onEffectTriggered(target?: { sceneName?: string; sourceName?: string; sourceEnabled?: boolean; actionType?: 'scene-switch' | 'source-toggle' | 'both' }) {
+    if (!this.connected) return;
+    const sceneName = target?.sceneName ?? this.config.effectScene;
+    const actionType = target?.actionType ?? 'both';
+
+    if (sceneName && (actionType === 'scene-switch' || actionType === 'both')) {
+      await this.call('SetCurrentProgramScene', { sceneName });
+    }
+
+    if (sceneName && target?.sourceName && (actionType === 'source-toggle' || actionType === 'both')) {
+      const sceneItemId = await this.getSceneItemId(sceneName, target.sourceName);
+      await this.call('SetSceneItemEnabled', {
+        sceneName,
+        sceneItemId,
+        sceneItemEnabled: target.sourceEnabled ?? true
+      });
+    }
   }
 
   private async waitForHello(): Promise<ObsHello> {

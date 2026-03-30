@@ -29,6 +29,16 @@ test('parseTwitchPrivmsg parses IRC line', () => {
   assert.equal(parsed.tags['display-name'], 'Foo');
 });
 
+test('parseTwitchPrivmsg decodes escaped tag values', () => {
+  const parsed = parseTwitchPrivmsg(
+    '@display-name=Foo\\sBar;badge-info=subscriber\\:12 :foo!foo@foo.tmi.twitch.tv PRIVMSG #mychannel :GG'
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.tags['display-name'], 'Foo Bar');
+  assert.equal(parsed.tags['badge-info'], 'subscriber;12');
+});
+
 test('normalizeTwitchMessage maps IRC line to normalized model', () => {
   const normalized = normalizeTwitchMessage(
     '@badge-info=;badges=moderator/1,subscriber/6;display-name=Foo;id=abc;tmi-sent-ts=1711000000000;user-id=42 :foo!foo@foo.tmi.twitch.tv PRIVMSG #mychannel :ドンマイ',
@@ -40,4 +50,16 @@ test('normalizeTwitchMessage maps IRC line to normalized model', () => {
   assert.equal(normalized.message, 'ドンマイ');
   assert.equal(normalized.isModerator, true);
   assert.equal(normalized.isSubscriber, true);
+});
+
+test('normalizeTwitchMessage falls back when tmi-sent-ts is invalid', () => {
+  const before = Date.now();
+  const normalized = normalizeTwitchMessage(
+    '@badge-info=;badges=;display-name=Foo;id=abc;tmi-sent-ts=invalid;user-id=42 :foo!foo@foo.tmi.twitch.tv PRIVMSG #mychannel :GG',
+    'stream-tw'
+  );
+
+  assert.ok(normalized);
+  assert.equal(normalized.id, 'abc');
+  assert.ok(normalized.timestamp >= before);
 });

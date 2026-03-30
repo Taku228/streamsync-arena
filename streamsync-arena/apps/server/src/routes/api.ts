@@ -23,10 +23,51 @@ const settingsPatchSchema = z
   })
   .strict();
 
+const effectRuleSchema = z
+  .object({
+    id: z.string().min(1),
+    keyword: z.string().min(1),
+    effect: z.enum(['confetti', 'shake', 'flash', 'gg-burst']),
+    enabled: z.boolean(),
+    obsSceneName: z.string().min(1).optional(),
+    obsSourceName: z.string().min(1).optional(),
+    obsSourceEnabled: z.boolean().optional(),
+    obsActionType: z.enum(['scene-switch', 'source-toggle', 'both']).optional()
+  })
+  .strict()
+  .superRefine((rule, ctx) => {
+    const actionType = rule.obsActionType ?? 'both';
+
+    if ((actionType === 'scene-switch' || actionType === 'both') && !rule.obsSceneName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'obsSceneName is required for scene-switch/both actions'
+      });
+    }
+
+    if ((actionType === 'source-toggle' || actionType === 'both') && !rule.obsSourceName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'obsSourceName is required for source-toggle/both actions'
+      });
+    }
+  });
+
 export async function registerApiRoutes(app: FastifyInstance, service: StreamService) {
   app.get('/health', async () => ({ ok: true }));
+  app.get('/health/runtime', async () => {
+    const state = service.getState();
+    return {
+      ok: true,
+      participants: state.participants.length,
+      activeParticipants: state.activeParticipants.length,
+      hasActiveVote: Boolean(state.voteSession?.active),
+      platformErrorCount: state.platformErrors.length
+    };
+  });
   app.get('/state', async () => service.getState());
   app.get('/settings', async () => service.getState().settings);
+  app.get('/effects', async () => service.getState().effectRules);
 
   app.post('/settings', async (req, reply) => {
     const body = settingsPatchSchema.parse(req.body);
@@ -37,6 +78,12 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
 
     service.updateSettings(merged);
     return reply.send({ ok: true, settings: service.getState().settings });
+  });
+
+  app.post('/effects', async (req, reply) => {
+    const rules = z.array(effectRuleSchema).min(1).max(20).parse(req.body);
+    service.updateEffectRules(rules);
+    return reply.send({ ok: true, effectRules: service.getState().effectRules });
   });
 
   app.post('/rotation/next-match', async () => {
@@ -63,6 +110,11 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
 
   app.post('/votes/close', async () => {
     service.closeVote();
+    return { ok: true };
+  });
+
+  app.post('/platform/errors/clear', async () => {
+    service.clearPlatformErrors();
     return { ok: true };
   });
 }

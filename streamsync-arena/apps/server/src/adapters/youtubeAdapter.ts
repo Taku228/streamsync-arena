@@ -33,7 +33,9 @@ export class YouTubeLiveAdapter implements PlatformAdapter {
   private handler?: (message: ChatMessage) => void | Promise<void>;
   private errorHandler?: (error: Error) => void;
   private timer?: NodeJS.Timeout;
+  private abortController?: AbortController;
   private nextPageToken?: string;
+  private reconnectAttempts = 0;
   private stopped = false;
 
   constructor(config: YoutubeAdapterConfig) {
@@ -48,6 +50,7 @@ export class YouTubeLiveAdapter implements PlatformAdapter {
   disconnect() {
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
+    this.abortController?.abort();
   }
 
   onMessage(handler: (message: ChatMessage) => void | Promise<void>) {
@@ -61,6 +64,7 @@ export class YouTubeLiveAdapter implements PlatformAdapter {
   private async poll() {
     if (this.stopped) return;
     try {
+      this.abortController = new AbortController();
       const params = new URLSearchParams({
         part: 'snippet,authorDetails',
         liveChatId: this.config.liveChatId,
@@ -69,7 +73,9 @@ export class YouTubeLiveAdapter implements PlatformAdapter {
       });
       if (this.nextPageToken) params.set('pageToken', this.nextPageToken);
 
-      const response = await fetch(`https://www.googleapis.com/youtube/v3/liveChat/messages?${params.toString()}`);
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/liveChat/messages?${params.toString()}`, {
+        signal: this.abortController.signal
+      });
       if (!response.ok) throw new Error(`YouTube API error: ${response.status}`);
       const data = (await response.json()) as YouTubeListResponse & { nextPageToken?: string };
       this.nextPageToken = data.nextPageToken;
@@ -82,12 +88,24 @@ export class YouTubeLiveAdapter implements PlatformAdapter {
         if (this.handler) await this.handler(message);
       }
 
+      this.reconnectAttempts = 0;
       const nextDelay = data.pollingIntervalMillis ?? this.config.pollIntervalMs ?? 3000;
-      this.timer = setTimeout(() => void this.poll(), nextDelay);
+      if (!this.stopped) {
+        this.timer = setTimeout(() => void this.poll(), nextDelay);
+      }
     } catch (error) {
       const resolved = error instanceof Error ? error : new Error(String(error));
-      this.errorHandler?.(resolved);
-      this.timer = setTimeout(() => void this.poll(), this.config.pollIntervalMs ?? 5000);
+      if (resolved.name !== 'AbortError') {
+        this.errorHandler?.(resolved);
+      }
+      const base = this.config.pollIntervalMs ?? 5000;
+      const backoff = Math.min(30000, base * 2 ** this.reconnectAttempts);
+      this.reconnectAttempts += 1;
+      if (!this.stopped) {
+        this.timer = setTimeout(() => void this.poll(), backoff);
+      }
+    } finally {
+      this.abortController = undefined;
     }
   }
 }

@@ -77,16 +77,40 @@ function createPlatformAdapter(): PlatformAdapter {
   return new MockPlatformAdapter();
 }
 
-const adapter = createPlatformAdapter();
-adapter.onMessage(async (message) => {
-  await service.ingestMessage(message);
-});
-adapter.onError?.((error) => {
-  app.log.error(error);
-  service.reportPlatformError(error);
-});
+let adapter: PlatformAdapter;
+try {
+  adapter = createPlatformAdapter();
+} catch (error: unknown) {
+  const resolved = error instanceof Error ? error : new Error(String(error));
+  app.log.error(resolved, 'Failed to create requested platform adapter. Falling back to mock adapter.');
+  service.reportPlatformError(resolved);
+  adapter = new MockPlatformAdapter();
+}
 
-adapter.connect();
+function bindAdapterHandlers(target: PlatformAdapter) {
+  target.onMessage(async (message) => {
+    await service.ingestMessage(message);
+  });
+  target.onError?.((error) => {
+    app.log.error(error);
+    service.reportPlatformError(error);
+  });
+}
+
+bindAdapterHandlers(adapter);
+
+try {
+  await adapter.connect();
+} catch (error: unknown) {
+  const resolved = error instanceof Error ? error : new Error(String(error));
+  app.log.error(resolved, 'Platform adapter connect failed.');
+  service.reportPlatformError(resolved);
+  if (!(adapter instanceof MockPlatformAdapter)) {
+    adapter = new MockPlatformAdapter();
+    bindAdapterHandlers(adapter);
+    await adapter.connect();
+  }
+}
 
 io.on('connection', (socket) => {
   socket.emit('dashboard:state', service.getState());
@@ -94,4 +118,12 @@ io.on('connection', (socket) => {
 
 httpServer.listen(port, () => {
   app.log.info(`server listening on http://localhost:${port}`);
+});
+
+
+process.on('SIGINT', async () => {
+  await adapter.disconnect();
+  await service.stop();
+  await app.close();
+  process.exit(0);
 });
