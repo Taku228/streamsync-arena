@@ -118,9 +118,9 @@ cp apps/server/.env.example apps/server/.env
    - `TWITCH_CHANNEL` / `TWITCH_BOT_USERNAME` / `TWITCH_OAUTH_TOKEN` を設定
 6. OBS 連携を使う場合（任意）
    - OBSで WebSocket Server を有効化
-   - `.env` の `OBS_WS_URL` を設定（パスワード認証は現在未対応）
+   - `.env` の `OBS_WS_URL` / `OBS_WS_PASSWORD` を設定
 
 わからない値がある場合は、空欄のままで `mock` モードから始めて大丈夫です。
 
 
-> 注: 現在のOBS連携は「基礎実装」です。シーン切替と投票ソース表示ON/OFFの最小機能を提供します。
+> 注: 現在のOBS連携は「基礎実装」です。シーン切替と投票ソース表示ON/OFFを提供します。

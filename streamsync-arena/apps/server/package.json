@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/adapters/__tests__/normalizers.test.ts"
+    "test": "tsx --test src/adapters/__tests__/normalizers.test.ts src/services/streamService.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
