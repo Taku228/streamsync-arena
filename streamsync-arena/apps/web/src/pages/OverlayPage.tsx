@@ -13,6 +13,11 @@ export function OverlayPage() {
     [voteSession]
   );
 
+  const totalVotes = useMemo(
+    () => state.voteSession?.options.reduce((total, option) => total + option.votes, 0) ?? 0,
+    [state.voteSession]
+  );
+
   return (
     <div className="overlay-root">
       <div className="overlay-top">
