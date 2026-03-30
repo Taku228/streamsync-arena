@@ -27,6 +27,16 @@ export function ControlsPanel({ state }: { state: DashboardState }) {
             <span className="badge">辞退キーワード: {state.settings.leaveKeyword}</span>
           </div>
         </div>
+        {state.platformErrors.length > 0 && (
+          <div>
+            <h3>接続エラー</h3>
+            {state.platformErrors.slice(0, 3).map((error) => (
+              <div key={error} className="badge" style={{ display: 'block', marginBottom: 6 }}>
+                {error}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

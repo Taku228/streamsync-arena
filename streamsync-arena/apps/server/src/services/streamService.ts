@@ -8,10 +8,13 @@ import {
   type EffectRule,
   type OverlayEvent,
   type Participant,
+  type StreamSettings,
   type VoteSession
 } from '@streamsync/shared';
 import type { Server as SocketIOServer } from 'socket.io';
 import type { GameStatsAdapter } from '../adapters/gameStatsAdapter.js';
+import type { SettingsRepository } from '../repositories/settingsRepository.js';
+import type { ObsController } from '../integrations/obsController.js';
 
 export class StreamService {
   private state: DashboardState = {
@@ -21,13 +24,26 @@ export class StreamService {
     voteSession: null,
     settings: defaultSettings,
     effectRules: defaultEffectRules,
-    matchCounter: 0
+    matchCounter: 0,
+    platformErrors: []
   };
 
   constructor(
     private readonly io: SocketIOServer,
-    private readonly gameStatsAdapter: GameStatsAdapter
+    private readonly gameStatsAdapter: GameStatsAdapter,
+    private readonly settingsRepository: SettingsRepository,
+    private readonly obsController: ObsController
   ) {}
+
+  async initialize() {
+    const saved = this.settingsRepository.getSettings();
+    if (saved) {
+      this.state.settings = { ...defaultSettings, ...saved };
+    }
+    await this.obsController.connect().catch((error: unknown) => {
+      this.reportPlatformError(error instanceof Error ? error : new Error('OBS connect error'));
+    });
+  }
 
   getState() {
     return this.state;
@@ -35,7 +51,7 @@ export class StreamService {
 
   async ingestMessage(message: ChatMessage) {
     this.state.recentMessages = [message, ...this.state.recentMessages].slice(0, 100);
-    const normalized = message.text.trim();
+    const normalized = message.message.trim();
 
     if (normalized === this.state.settings.entryKeyword) {
       this.enqueueParticipant(message);
@@ -81,8 +97,8 @@ export class StreamService {
       | undefined;
 
     const timesParticipated = row?.timesParticipated ?? 0;
-    const membership = Boolean(message.membership || row?.membership);
-    const gifted = Boolean(message.gifted || row?.gifted);
+    const membership = Boolean(message.isMember || row?.membership);
+    const gifted = Boolean(message.isGifted || row?.gifted);
 
     const participant: Participant = {
       id: row?.id ?? nanoid(),
@@ -170,8 +186,9 @@ export class StreamService {
     this.state.activeParticipants = this.state.participants.filter((p) => p.status === 'active');
   }
 
-  updateSettings(next: Partial<DashboardState['settings']>) {
+  updateSettings(next: Partial<StreamSettings>) {
     this.state.settings = { ...this.state.settings, ...next };
+    this.settingsRepository.saveSettings(this.state.settings);
     this.broadcast();
   }
 
@@ -189,12 +206,18 @@ export class StreamService {
       options: options.map((label) => ({ id: nanoid(), label, votes: 0 }))
     };
     this.state.voteSession = vote;
+    void this.obsController.onVoteUpdated(true).catch((error: unknown) => {
+      this.reportPlatformError(error instanceof Error ? error : new Error('OBS vote sync error'));
+    });
     this.emitOverlay({ type: 'vote.updated', payload: vote });
     this.broadcast();
   }
 
   closeVote() {
     if (this.state.voteSession) this.state.voteSession.active = false;
+    void this.obsController.onVoteUpdated(false).catch((error: unknown) => {
+      this.reportPlatformError(error instanceof Error ? error : new Error('OBS vote sync error'));
+    });
     this.emitOverlay({ type: 'vote.updated', payload: this.state.voteSession });
     this.broadcast();
   }
@@ -202,7 +225,7 @@ export class StreamService {
   private processVote(message: ChatMessage) {
     const vote = this.state.voteSession;
     if (!vote?.active) return;
-    const matched = vote.options.find((option) => option.label.toLowerCase() === message.text.trim().toLowerCase());
+    const matched = vote.options.find((option) => option.label.toLowerCase() === message.message.trim().toLowerCase());
     if (matched) {
       matched.votes += 1;
       this.emitOverlay({ type: 'vote.updated', payload: vote });
@@ -211,12 +234,17 @@ export class StreamService {
 
   private processEffectRules(message: ChatMessage) {
     const hit = this.state.effectRules.find(
-      (rule) => rule.enabled && message.text.toLowerCase().includes(rule.keyword.toLowerCase())
+      (rule) => rule.enabled && message.message.toLowerCase().includes(rule.keyword.toLowerCase())
     );
     if (!hit) return;
+
+    void this.obsController.onEffectTriggered().catch((error: unknown) => {
+      this.reportPlatformError(error instanceof Error ? error : new Error('OBS effect sync error'));
+    });
+
     this.emitOverlay({
       type: 'effect.triggered',
-      payload: { effect: hit.effect, userName: message.userName, text: message.text }
+      payload: { effect: hit.effect, userName: message.userName, text: message.message }
     });
   }
 
@@ -230,6 +258,12 @@ export class StreamService {
     const stats = await this.gameStatsAdapter.syncActiveParticipants(activeIds);
     this.state.participants = this.state.participants.map((p) => ({ ...p, ...stats[p.id] }));
     this.state.activeParticipants = this.state.participants.filter((p) => p.status === 'active');
+  }
+
+  reportPlatformError(error: Error) {
+    const next = `${new Date().toISOString()} - ${error.message}`;
+    this.state.platformErrors = [next, ...this.state.platformErrors].slice(0, 10);
+    this.broadcast();
   }
 
   broadcast() {
