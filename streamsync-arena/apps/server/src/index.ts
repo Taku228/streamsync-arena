@@ -23,7 +23,8 @@ const io = new Server(httpServer, {
 });
 
 const obsWsUrl = (process.env.OBS_WS_URL ?? '').trim();
-const obsController = obsWsUrl
+const obsEnabled = process.env.OBS_WS_ENABLED === 'true';
+const obsController = obsEnabled && obsWsUrl
   ? new ObsWebSocketController({
       url: obsWsUrl,
       password: process.env.OBS_WS_PASSWORD,

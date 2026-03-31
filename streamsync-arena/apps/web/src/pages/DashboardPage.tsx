@@ -14,13 +14,13 @@ export function DashboardPage() {
     <div className="layout">
       <div className="stack">
         <ControlsPanel state={state} connectionState={connectionState} />
+      </div>
+      <div className="stack">
         <ParticipantsPanel participants={state.participants} active={state.activeParticipants} />
-      </div>
-      <div className="stack">
-        <VotePanel vote={state.voteSession} />
-      </div>
-      <div className="stack">
         <ChatPanel messages={state.recentMessages} connectionState={connectionState} />
+      </div>
+      <div className="stack vote-stack">
+        <VotePanel vote={state.voteSession} />
       </div>
     </div>
   );

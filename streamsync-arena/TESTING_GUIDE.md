@@ -26,6 +26,7 @@ cp apps/web/.env.example apps/web/.env
 ### 最低限の推奨設定（最初の動作確認）
 - `apps/server/.env`
   - `CHAT_PLATFORM=mock`
+  - `OBS_WS_ENABLED=false`（OBS未使用時）
   - `APP_PLAN_TIER=free`
   - `BILLING_ACTIVE=true`
 - `apps/web/.env`
@@ -88,8 +89,12 @@ npm run build -w @streamsync/web
 
 ## 3-2. 参加・辞退フロー（mock）
 ### 手順
+0. 必要なら `apps/server/.env` で速度調整
+   - `MOCK_MESSAGE_INTERVAL_MS=3500`
+   - `MOCK_MESSAGE_START_DELAY_MS=1200`
 1. mockメッセージが流れる状態を待つ
-2. 参加キーワード/辞退キーワード反応を確認
+2. コメント欄の「参加系のみ」をON
+3. 参加キーワード/辞退キーワード反応を確認
 
 ### OK判定
 - 参加でキュー追加

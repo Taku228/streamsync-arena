@@ -209,6 +209,7 @@ export function ControlsPanel({
   const [wizardStep, setWizardStep] = useState(0);
   const [selectedStreamPresetId, setSelectedStreamPresetId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const initializedFromServer = useRef(false);
 
   const builtInPresetNames = ["GG Burst", "Cheer Flash", "Console Shake"];
 
@@ -312,10 +313,12 @@ export function ControlsPanel({
   }, [onboardingChecks]);
 
   useEffect(() => {
+    if (initializedFromServer.current) return;
     setEntryKeyword(state.settings.entryKeyword);
     setLeaveKeyword(state.settings.leaveKeyword);
     setMaxActiveParticipants(state.settings.maxActiveParticipants);
     setEffectRules(state.effectRules);
+    initializedFromServer.current = true;
   }, [
     state.settings.entryKeyword,
     state.settings.leaveKeyword,

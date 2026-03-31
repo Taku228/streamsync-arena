@@ -1,4 +1,5 @@
 import type { ChatMessage } from '@streamsync/shared';
+import { useMemo, useState } from 'react';
 import { reconnectSocket } from '../lib/socket';
 
 export function ChatPanel({
@@ -8,15 +9,27 @@ export function ChatPanel({
   messages: ChatMessage[];
   connectionState: 'connected' | 'disconnected';
 }) {
+  const [joinOnly, setJoinOnly] = useState(false);
+  const visibleMessages = useMemo(() => {
+    if (!joinOnly) return messages;
+    return messages.filter((message) => ['参加', '辞退', '抜け', 'エントリー'].some((word) => message.message.includes(word)));
+  }, [joinOnly, messages]);
+
   return (
     <div className="card">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h2 style={{ marginBottom: 0 }}>ライブコメント</h2>
-        <span className={`badge ${connectionState === 'connected' ? 'good' : 'danger'}`}>
-          {connectionState === 'connected' ? '接続中' : '未接続'}
-        </span>
+        <div className="row">
+          <label className="row" style={{ marginBottom: 0 }}>
+            <input type="checkbox" checked={joinOnly} onChange={(event) => setJoinOnly(event.target.checked)} />
+            参加系のみ
+          </label>
+          <span className={`badge ${connectionState === 'connected' ? 'good' : 'danger'}`}>
+            {connectionState === 'connected' ? '接続中' : '未接続'}
+          </span>
+        </div>
       </div>
-      {messages.length === 0 && (
+      {visibleMessages.length === 0 && (
         <div className="row" style={{ color: 'var(--muted)', marginTop: 8 }}>
           <span>{connectionState === 'connected' ? 'コメント待機中…' : 'サーバー接続待ちです。'}</span>
           {connectionState === 'disconnected' && (
@@ -24,7 +37,7 @@ export function ChatPanel({
           )}
         </div>
       )}
-      {messages.map((message) => (
+      {visibleMessages.map((message) => (
         <div className="chat-item" key={message.id}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <strong>{message.userName}</strong>
