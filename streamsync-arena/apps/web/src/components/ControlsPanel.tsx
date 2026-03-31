@@ -474,7 +474,6 @@ export function ControlsPanel({
     setSaveMessage(`テンプレを${importable.length}件取り込みました。`);
   }
 
-
   return (
     <div className="card">
       <h2>指揮官画面</h2>
@@ -719,16 +718,6 @@ export function ControlsPanel({
               </div>
             ))}
           </div>
-        )}
-
-        <div className="row">
-          <button className="button" onClick={saveSettings} disabled={saveStatus === 'saving' || !canWrite}>設定保存</button>
-          {saveStatus !== 'idle' && (
-            <span className={`badge ${saveStatus === 'error' ? 'danger' : 'good'}`}>{saveMessage}</span>
-          )}
-          {actionStatus !== 'idle' && (
-            <span className={`badge ${actionStatus === 'error' ? 'danger' : 'good'}`}>{actionMessage}</span>
-          )}
         </div>
 
         <div>
@@ -746,7 +735,7 @@ export function ControlsPanel({
                   ref={importInputRef}
                   type="file"
                   accept="application/json"
-                  style={{ display: "none" }}
+                  style={{ display: 'none' }}
                   onChange={(event) => void importTemplates(event.target.files?.[0] ?? null)}
                 />
               </div>
