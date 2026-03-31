@@ -201,4 +201,42 @@ cp apps/server/.env.example apps/server/.env
 わからない値がある場合は、空欄のままで `mock` モードから始めて大丈夫です。
 
 
+## Windows で `npm ci` / `lint` が失敗するとき
+
+### 症状1: `npm ci` で `EPERM: operation not permitted, unlink ... rollup.win32-x64-msvc.node`
+
+`rollup.win32-x64-msvc.node` が他プロセスに掴まれているケースが多いです。
+
+1. `npm run dev` や Vite/Node プロセスをすべて停止
+2. VSCode のターミナルや拡張（TS Server）を再起動
+3. 必要なら Windows Defender/アンチウイルスのリアルタイムスキャン対象からプロジェクトを除外
+4. リポジトリ **ルート**（`streamsync-arena`）で再実行
+
+```powershell
+taskkill /F /IM node.exe
+rd /s /q node_modules
+del package-lock.json
+npm install
+```
+
+> `npm ci` は lock と実体の不整合に厳密なため、開発中は `npm install` で復旧する方が安定することがあります。
+
+### 症状2: `npm run lint -w @streamsync/web` で `'tsc' は ... 認識されていません`
+
+これはほぼ「依存インストール未完了」が原因です（上記 `EPERM` で中断すると発生）。
+
+1. 依存のインストール成功を確認
+2. ルートで以下を実行
+
+```powershell
+npm run lint -w @streamsync/web
+```
+
+それでも失敗する場合は、暫定的に次でも確認できます。
+
+```powershell
+npm exec -w @streamsync/web tsc -- --noEmit -p tsconfig.json
+```
+
+
 > 注: 現在のOBS連携は「基礎実装」です。シーン切替と投票ソース表示ON/OFFを提供します。
