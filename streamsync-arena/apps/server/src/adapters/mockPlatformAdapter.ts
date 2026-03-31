@@ -9,6 +9,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
   private timer?: NodeJS.Timeout;
   private handler?: (message: ChatMessage) => void | Promise<void>;
   private readonly platform: Platform = 'mock';
+  private readonly intervalMs = Number(process.env.MOCK_MESSAGE_INTERVAL_MS ?? 2200);
 
   connect() {
     this.timer = setInterval(() => {
@@ -28,7 +29,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
         timestamp: Date.now(),
         raw: { source: 'mock' }
       });
-    }, 2200);
+    }, Number.isFinite(this.intervalMs) && this.intervalMs >= 300 ? this.intervalMs : 2200);
   }
 
   disconnect() {

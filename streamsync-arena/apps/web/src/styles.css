@@ -19,6 +19,9 @@ body {
   min-height: 100vh;
   color: var(--text);
 }
+body.overlay-mode {
+  background: transparent !important;
+}
 a { color: inherit; }
 button, input, select {
   font: inherit;

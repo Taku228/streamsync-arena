@@ -22,9 +22,10 @@ const io = new Server(httpServer, {
   cors: { origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173' }
 });
 
-const obsController = process.env.OBS_WS_URL
+const obsWsUrl = (process.env.OBS_WS_URL ?? '').trim();
+const obsController = obsWsUrl
   ? new ObsWebSocketController({
-      url: process.env.OBS_WS_URL,
+      url: obsWsUrl,
       password: process.env.OBS_WS_PASSWORD,
       effectScene: process.env.OBS_EFFECT_SCENE,
       voteSourceName: process.env.OBS_VOTE_SOURCE_NAME

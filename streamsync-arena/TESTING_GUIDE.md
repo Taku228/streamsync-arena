@@ -118,6 +118,18 @@ npm run build -w @streamsync/web
 - `OPERATOR_TOKEN`, `VIEWER_TOKEN` を `apps/server/.env` に設定
 - `apps/web/.env` の `VITE_OPERATOR_TOKEN` を必要に応じて切替
 
+#### 設定例（そのままコピペ可）
+`apps/server/.env`
+```env
+OPERATOR_TOKEN=op_local_123
+VIEWER_TOKEN=view_local_123
+```
+
+`apps/web/.env`（Viewerとして確認したい時は空にする）
+```env
+VITE_OPERATOR_TOKEN=op_local_123
+```
+
 ### 手順
 1. Viewerトークンでアクセス
 2. 保存/ローテーションなど更新系操作を試行

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRealtimeDashboard } from '../hooks/useRealtimeDashboard';
 import { useDashboardStore } from '../store/useDashboardStore';
 
@@ -13,6 +13,11 @@ export function OverlayPage() {
     () => voteSession?.options.reduce((total, option) => total + option.votes, 0) ?? 0,
     [voteSession]
   );
+
+  useEffect(() => {
+    document.body.classList.add('overlay-mode');
+    return () => document.body.classList.remove('overlay-mode');
+  }, []);
 
   return (
     <div className="overlay-root">

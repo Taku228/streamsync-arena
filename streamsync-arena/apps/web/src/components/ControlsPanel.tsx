@@ -207,6 +207,7 @@ export function ControlsPanel({
   });
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
+  const [selectedStreamPresetId, setSelectedStreamPresetId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const builtInPresetNames = ["GG Burst", "Cheer Flash", "Console Shake"];
@@ -448,6 +449,7 @@ export function ControlsPanel({
   function applyStreamPreset(presetId: string) {
     const preset = streamPresets.find((item) => item.id === presetId);
     if (!preset) return;
+    setSelectedStreamPresetId(preset.id);
 
     setEntryKeyword(preset.settings.entryKeyword);
     setLeaveKeyword(preset.settings.leaveKeyword);
@@ -772,10 +774,10 @@ export function ControlsPanel({
                   {streamPresets.map((preset) => (
                     <button
                       key={preset.id}
-                      className="button secondary"
+                      className={preset.id === selectedStreamPresetId ? "button" : "button secondary"}
                       onClick={() => applyStreamPreset(preset.id)}
                     >
-                      {preset.label}
+                      {preset.label}{preset.id === selectedStreamPresetId ? "（適用中）" : ""}
                     </button>
                   ))}
                 </div>
@@ -904,10 +906,10 @@ export function ControlsPanel({
                   </div>
                 </div>
                 <button
-                  className="button secondary"
+                  className={preset.id === selectedStreamPresetId ? "button" : "button secondary"}
                   onClick={() => applyStreamPreset(preset.id)}
                 >
-                  このテンプレを適用
+                  {preset.id === selectedStreamPresetId ? "適用中" : "このテンプレを適用"}
                 </button>
               </div>
             ))}
