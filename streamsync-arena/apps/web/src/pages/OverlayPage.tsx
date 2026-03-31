@@ -6,6 +6,7 @@ export function OverlayPage() {
   useRealtimeDashboard();
   const state = useDashboardStore((s) => s.state);
   const lastEvent = useDashboardStore((s) => s.lastOverlayEvent);
+  const connectionState = useDashboardStore((s) => s.connectionState);
   const voteSession = state.voteSession;
 
   const totalVotes = useMemo(
@@ -13,16 +14,19 @@ export function OverlayPage() {
     [voteSession]
   );
 
-  const totalVotes = useMemo(
-    () => state.voteSession?.options.reduce((total, option) => total + option.votes, 0) ?? 0,
-    [state.voteSession]
-  );
-
   return (
     <div className="overlay-root">
       <div className="overlay-top">
         <div className="overlay-panel">
-          <h3>参加者</h3>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h3 style={{ marginBottom: 0 }}>参加者</h3>
+            <span className={`badge ${connectionState === 'connected' ? 'good' : 'danger'}`}>
+              {connectionState === 'connected' ? '接続中' : '未接続'}
+            </span>
+          </div>
+          {connectionState === 'disconnected' && (
+            <div className="overlay-empty">サーバー接続待ちです。起動状態を確認してください。</div>
+          )}
           {state.activeParticipants.length === 0 && <div className="overlay-empty">参加待機中…</div>}
           {state.activeParticipants.map((participant) => (
             <div

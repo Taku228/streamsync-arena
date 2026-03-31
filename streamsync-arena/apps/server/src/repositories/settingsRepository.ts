@@ -3,6 +3,7 @@ import type { EffectRule, StreamSettings } from '@streamsync/shared';
 
 const SETTINGS_KEY = 'stream_settings';
 const EFFECT_RULES_KEY = 'effect_rules';
+const BILLING_STATUS_KEY = 'billing_status';
 
 export class SettingsRepository {
   getSettings(): StreamSettings | null {
@@ -19,6 +20,14 @@ export class SettingsRepository {
 
   saveEffectRules(rules: EffectRule[]) {
     this.writeJson(EFFECT_RULES_KEY, rules);
+  }
+
+  getBillingStatus(): { active: boolean; trialEndsAt: string | null; updatedAt: string } | null {
+    return this.readJson(BILLING_STATUS_KEY);
+  }
+
+  saveBillingStatus(status: { active: boolean; trialEndsAt: string | null; updatedAt: string }) {
+    this.writeJson(BILLING_STATUS_KEY, status);
   }
 
   private readJson<T>(key: string): T | null {

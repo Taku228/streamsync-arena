@@ -16,11 +16,15 @@ const initialState: DashboardState = {
 export const useDashboardStore = create<{
   state: DashboardState;
   lastOverlayEvent: OverlayEvent | null;
+  connectionState: 'connected' | 'disconnected';
   setState: (state: DashboardState) => void;
   setOverlayEvent: (event: OverlayEvent | null) => void;
+  setConnectionState: (state: 'connected' | 'disconnected') => void;
 }>((set) => ({
   state: initialState,
   lastOverlayEvent: null,
+  connectionState: 'disconnected',
   setState: (state) => set({ state }),
-  setOverlayEvent: (event) => set({ lastOverlayEvent: event })
+  setOverlayEvent: (event) => set({ lastOverlayEvent: event }),
+  setConnectionState: (state) => set({ connectionState: state })
 }));

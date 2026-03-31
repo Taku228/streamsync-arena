@@ -31,7 +31,17 @@ const obsController = process.env.OBS_WS_URL
     })
   : new NoopObsController();
 
-const service = new StreamService(io, new MockGameStatsAdapter(), new SettingsRepository(), obsController);
+const service = new StreamService(
+  io,
+  new MockGameStatsAdapter(),
+  new SettingsRepository(),
+  obsController,
+  process.env.ALERT_WEBHOOK_URL,
+  {
+    active: process.env.BILLING_ACTIVE !== 'false',
+    trialEndsAt: process.env.BILLING_TRIAL_END ?? null
+  }
+);
 await service.initialize();
 await registerApiRoutes(app, service);
 

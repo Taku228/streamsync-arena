@@ -50,6 +50,80 @@ npm run dev
 - Fortnite / Apex / Valorant のリアルタイム戦績 API は利用条件や API 仕様が変わるため、`GameStatsAdapter` インターフェースで差し替え可能にしています。
 - 「リリースできる品質」を意識して、責務分離・型安全・UI 分割・保守性を重視した構成にしています。
 
+
+## 商品として公開するための最小チェックリスト
+
+最短で公開したい場合は、以下の3系統に分けると運用しやすくなります。
+
+1. Web（`apps/web`）を静的ホスティングへ配置
+   - 例: Vercel / Netlify / Cloudflare Pages
+   - `npm run build -w @streamsync/web` で `dist` を生成
+2. API（`apps/server`）を Node 常駐環境へ配置
+   - 例: Render / Fly.io / Railway / VPS
+   - `CORS_ORIGIN` を Web 公開ドメインに合わせる
+3. 配信PC（OBS）から公開済み `overlay` URL を読み込み
+
+### 本番公開前の確認コマンド
+
+```bash
+npm run lint -w @streamsync/server
+npm run lint -w @streamsync/web
+npm run build -w @streamsync/server
+npm run build -w @streamsync/web
+npm run test -w @streamsync/server
+```
+
+### 本番運用で追加推奨
+
+- SQLite から Postgres 等への移行（同時接続・バックアップ対策）
+- OAuth ログイン
+- audit log
+- E2E テスト
+
+### 課金ステータス連携（Webhook）
+
+課金状態を外部システムから更新する場合は、サーバーの `.env` に以下を設定します。
+
+- `BILLING_WEBHOOK_SECRET`（必須）
+- `BILLING_WEBHOOK_SIGNING_SECRET`（任意 / 署名検証したい場合）
+
+#### 汎用Webhook
+
+- `POST /billing/webhook`
+- Header: `x-billing-secret: <BILLING_WEBHOOK_SECRET>`
+- Body:
+
+```json
+{
+  "active": true,
+  "trialEndsAt": "2028-01-01T00:00:00.000Z"
+}
+```
+
+#### Stripe形式Webhook（簡易マッピング）
+
+- `POST /billing/webhook/stripe`
+- Header: `x-billing-secret: <BILLING_WEBHOOK_SECRET>`
+- Header(任意): `x-billing-signature: <HMAC-SHA256(JSON body)>`
+- 対応イベント:
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+
+`status` が `active` / `trialing` のとき `active=true` にマッピングされます。
+
+#### Stripe形式Webhookの検証用コマンド例
+
+```bash
+BODY='{"type":"customer.subscription.updated","data":{"object":{"status":"trialing","current_period_end":1893456000}}}'
+SIG=$(printf %s "$BODY" | openssl dgst -sha256 -hmac "$BILLING_WEBHOOK_SIGNING_SECRET" -hex | sed 's/^.* //')
+
+curl -X POST http://localhost:3001/billing/webhook/stripe \
+  -H "content-type: application/json" \
+  -H "x-billing-secret: $BILLING_WEBHOOK_SECRET" \
+  -H "x-billing-signature: $SIG" \
+  -d "$BODY"
+```
+
 ## 今後追加すると良いもの
 
 - OAuth ログイン
@@ -104,6 +178,7 @@ cp apps/server/.env.example apps/server/.env
 2. 環境変数ファイル作成
    ```bash
    cp apps/server/.env.example apps/server/.env
+   cp apps/web/.env.example apps/web/.env
    ```
 3. 最初はモックで起動（おすすめ）
    - `.env` の `CHAT_PLATFORM=mock` のまま
@@ -119,6 +194,9 @@ cp apps/server/.env.example apps/server/.env
 6. OBS 連携を使う場合（任意）
    - OBSで WebSocket Server を有効化
    - `.env` の `OBS_WS_URL` / `OBS_WS_PASSWORD` を設定
+7. OBSを別PCで使う場合（任意）
+   - `apps/web/.env` の `VITE_API_BASE_URL` / `VITE_SOCKET_URL` を
+     サーバーPCのアドレス（例: `http://192.168.1.10:3001`）に変更
 
 わからない値がある場合は、空欄のままで `mock` モードから始めて大丈夫です。
 

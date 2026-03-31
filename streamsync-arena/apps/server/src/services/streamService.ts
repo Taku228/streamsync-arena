@@ -20,12 +20,43 @@ type SettingsStore = {
   saveSettings(settings: StreamSettings): void;
   getEffectRules(): EffectRule[] | null;
   saveEffectRules(rules: EffectRule[]): void;
+  getBillingStatus?(): BillingStatus | null;
+  saveBillingStatus?(status: BillingStatus): void;
+};
+
+type OperationLog = {
+  at: string;
+  action: string;
+  detail: string;
+};
+
+type AnalyticsSummary = {
+  participantsQueued: number;
+  participantsActive: number;
+  messagesInMemory: number;
+  uniqueChattersInMemory: number;
+  votesCast: number;
+  effectsTriggered: number;
+  lastUpdatedAt: string;
+};
+
+type BillingStatus = {
+  active: boolean;
+  trialEndsAt: string | null;
+  updatedAt: string;
 };
 
 export class StreamService {
   private rotationTimer?: NodeJS.Timeout;
   private lastPlatformError?: { message: string; at: number; count: number };
   private voteParticipants = new Set<string>();
+  private operationLogs: OperationLog[] = [];
+  private analyticsCounters = {
+    votesCast: 0,
+    effectsTriggered: 0,
+    lastUpdatedAt: new Date().toISOString()
+  };
+  private billingStatus: BillingStatus;
 
   private state: DashboardState = {
     participants: [],
@@ -42,8 +73,37 @@ export class StreamService {
     private readonly io: SocketIOServer,
     private readonly gameStatsAdapter: GameStatsAdapter,
     private readonly settingsRepository: SettingsStore,
-    private readonly obsController: ObsController
-  ) {}
+    private readonly obsController: ObsController,
+    private readonly alertWebhookUrl?: string,
+    initialBillingStatus?: { active: boolean; trialEndsAt: string | null }
+  ) {
+    this.billingStatus = {
+      active: initialBillingStatus?.active ?? true,
+      trialEndsAt: initialBillingStatus?.trialEndsAt ?? null,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  async initialize() {
+    const saved = this.settingsRepository.getSettings();
+    if (saved) {
+      this.state.settings = { ...defaultSettings, ...saved };
+    }
+
+    const savedRules = this.settingsRepository.getEffectRules();
+    if (savedRules?.length) {
+      this.state.effectRules = this.normalizeEffectRules(savedRules);
+    }
+    const savedBilling = this.settingsRepository.getBillingStatus?.();
+    if (savedBilling) {
+      this.billingStatus = savedBilling;
+    }
+
+    await this.obsController.connect().catch((error: unknown) => {
+      this.reportPlatformError(error instanceof Error ? error : new Error('OBS connect error'));
+    });
+    this.configureRotationTimer();
+  }
 
   async initialize() {
     const saved = this.settingsRepository.getSettings();
@@ -64,6 +124,39 @@ export class StreamService {
 
   getState() {
     return this.state;
+  }
+
+  getOperationLogs() {
+    return this.operationLogs;
+  }
+
+  getAnalyticsSummary(): AnalyticsSummary {
+    const uniqueChatters = new Set(
+      this.state.recentMessages.map((message) => `${message.platform}:${message.userId}`)
+    );
+    return {
+      participantsQueued: this.state.participants.filter((item) => item.status === 'queued').length,
+      participantsActive: this.state.activeParticipants.length,
+      messagesInMemory: this.state.recentMessages.length,
+      uniqueChattersInMemory: uniqueChatters.size,
+      votesCast: this.analyticsCounters.votesCast,
+      effectsTriggered: this.analyticsCounters.effectsTriggered,
+      lastUpdatedAt: this.analyticsCounters.lastUpdatedAt
+    };
+  }
+
+  getBillingStatus() {
+    return this.billingStatus;
+  }
+
+  updateBillingStatus(next: Partial<Pick<BillingStatus, 'active' | 'trialEndsAt'>>) {
+    this.billingStatus = {
+      ...this.billingStatus,
+      ...next,
+      updatedAt: new Date().toISOString()
+    };
+    this.settingsRepository.saveBillingStatus?.(this.billingStatus);
+    this.recordOperation('billing', `請求状態を更新しました (active=${this.billingStatus.active})`);
   }
 
   async ingestMessage(message: ChatMessage) {
@@ -177,11 +270,13 @@ export class StreamService {
     active.forEach((p) => (p.status = 'completed'));
     this.state.activeParticipants = [];
     this.activateFromQueue();
+    this.recordOperation('rotation', 'アクティブ参加者をローテーションしました');
     this.broadcast();
   }
 
   incrementMatchCounter() {
     this.state.matchCounter += 1;
+    this.recordOperation('match', `マッチカウンターを ${this.state.matchCounter} に更新しました`);
     const { rotation } = this.state.settings;
     if (rotation.enabled && rotation.mode === 'match-count' && this.state.matchCounter % rotation.rotateEveryMatches === 0) {
       this.rotateParticipants();
@@ -208,6 +303,7 @@ export class StreamService {
   updateSettings(next: Partial<StreamSettings>) {
     this.state.settings = { ...this.state.settings, ...next };
     this.settingsRepository.saveSettings(this.state.settings);
+    this.recordOperation('settings', '参加設定を更新しました');
     this.configureRotationTimer();
     this.broadcast();
   }
@@ -216,6 +312,7 @@ export class StreamService {
     const normalized = this.normalizeEffectRules(next);
     this.state.effectRules = normalized;
     this.settingsRepository.saveEffectRules(normalized);
+    this.recordOperation('effects', `エフェクトルールを ${normalized.length} 件更新しました`);
     this.broadcast();
   }
 
@@ -228,6 +325,7 @@ export class StreamService {
       options: options.map((label) => ({ id: nanoid(), label, votes: 0 }))
     };
     this.state.voteSession = vote;
+    this.recordOperation('vote', `投票を開始しました: ${title} (${options.length}択)`);
     this.voteParticipants.clear();
     void this.obsController.onVoteUpdated(true).catch((error: unknown) => {
       this.reportPlatformError(error instanceof Error ? error : new Error('OBS vote sync error'));
@@ -238,6 +336,7 @@ export class StreamService {
 
   closeVote() {
     if (this.state.voteSession) this.state.voteSession.active = false;
+    this.recordOperation('vote', '投票を終了しました');
     this.voteParticipants.clear();
     void this.obsController.onVoteUpdated(false).catch((error: unknown) => {
       this.reportPlatformError(error instanceof Error ? error : new Error('OBS vote sync error'));
@@ -255,6 +354,8 @@ export class StreamService {
     if (matched) {
       matched.votes += 1;
       this.voteParticipants.add(voterKey);
+      this.analyticsCounters.votesCast += 1;
+      this.analyticsCounters.lastUpdatedAt = new Date().toISOString();
       this.emitOverlay({ type: 'vote.updated', payload: vote });
     }
   }
@@ -264,6 +365,8 @@ export class StreamService {
       (rule) => rule.enabled && message.message.toLowerCase().includes(rule.keyword.toLowerCase())
     );
     if (!hit) return;
+    this.analyticsCounters.effectsTriggered += 1;
+    this.analyticsCounters.lastUpdatedAt = new Date().toISOString();
 
     void this.obsController
       .onEffectTriggered({
@@ -325,6 +428,7 @@ export class StreamService {
   clearPlatformErrors() {
     this.state.platformErrors = [];
     this.lastPlatformError = undefined;
+    this.recordOperation('platform', '接続エラー履歴をクリアしました');
     this.broadcast();
   }
 
@@ -346,7 +450,27 @@ export class StreamService {
     this.lastPlatformError = { message: error.message, at: now, count: 1 };
     const next = `${new Date(now).toISOString()} - ${error.message}`;
     this.state.platformErrors = [next, ...this.state.platformErrors].slice(0, 10);
+    this.recordOperation('platform', `接続エラー: ${error.message}`);
+    this.notifyPlatformAlert(error.message);
     this.broadcast();
+  }
+
+  private recordOperation(action: string, detail: string) {
+    this.operationLogs = [{ at: new Date().toISOString(), action, detail }, ...this.operationLogs].slice(0, 30);
+  }
+
+  private notifyPlatformAlert(message: string) {
+    if (!this.alertWebhookUrl) return;
+    const payload = {
+      text: `[StreamSync Arena] Platform error detected: ${message}`
+    };
+    void fetch(this.alertWebhookUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {
+      // Ignore notification failures to avoid recursive error noise.
+    });
   }
 
   broadcast() {
