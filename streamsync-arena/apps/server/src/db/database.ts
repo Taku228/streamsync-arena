@@ -17,6 +17,12 @@ db.exec(`
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_viewer_history_user
   ON viewer_history(platform_user_id, platform);
+
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 export default db;
