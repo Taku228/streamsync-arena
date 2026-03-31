@@ -597,24 +597,6 @@ export function ControlsPanel({
           {healthCheckedAt && <span className="badge">更新: {new Date(healthCheckedAt).toLocaleTimeString()}</span>}
           {healthStatus === 'error' && <span className="badge danger">ランタイム確認に失敗しました</span>}
         </div>
-        <div>
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ marginBottom: 0 }}>運用開始チェック</h3>
-            <div className="row">
-              <span className={`badge ${onboardingProgress === 100 ? 'good' : ''}`}>
-                進捗 {onboardingProgress}%
-              </span>
-              <button className="button secondary" onClick={startSetupWizard}>クイックセットアップ</button>
-            </div>
-          </div>
-          <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-            {onboardingChecks.map((check) => (
-              <div key={check.id} className={`badge ${check.done ? 'good' : ''}`} style={{ display: 'block' }}>
-                {check.done ? '✅' : '⬜️'} {check.label}
-              </div>
-            ))}
-          </div>
-        </div>
         {showSetupWizard && (
           <div className="card" style={{ border: '1px solid var(--border)' }}>
             <h3>クイックセットアップ（{wizardStep + 1}/3）</h3>
@@ -737,6 +719,16 @@ export function ControlsPanel({
               </div>
             ))}
           </div>
+        )}
+
+        <div className="row">
+          <button className="button" onClick={saveSettings} disabled={saveStatus === 'saving' || !canWrite}>設定保存</button>
+          {saveStatus !== 'idle' && (
+            <span className={`badge ${saveStatus === 'error' ? 'danger' : 'good'}`}>{saveMessage}</span>
+          )}
+          {actionStatus !== 'idle' && (
+            <span className={`badge ${actionStatus === 'error' ? 'danger' : 'good'}`}>{actionMessage}</span>
+          )}
         </div>
 
         <div>
