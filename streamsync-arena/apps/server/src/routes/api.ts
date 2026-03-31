@@ -244,4 +244,26 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
     service.clearPlatformErrors();
     return { ok: true };
   });
+
+  app.post('/debug/mock-message', async (req, reply) => {
+    const authz = authorizeWrite(req.headers.authorization);
+    if (!authz.ok) return reply.status(authz.status).send({ ok: false, message: authz.message });
+    const body = z.object({
+      kind: z.enum(['join', 'leave']),
+      userName: z.string().min(1).default('テストユーザー')
+    }).parse(req.body);
+    const keyword = body.kind === 'join' ? service.getState().settings.entryKeyword : service.getState().settings.leaveKeyword;
+    await service.ingestMessage({
+      id: `debug-${Date.now()}`,
+      platform: 'mock',
+      streamId: 'mock-debug',
+      userId: `debug-${body.userName}`,
+      userName: body.userName,
+      displayName: body.userName,
+      message: keyword,
+      timestamp: Date.now(),
+      raw: { source: 'debug-endpoint' }
+    });
+    return { ok: true };
+  });
 }

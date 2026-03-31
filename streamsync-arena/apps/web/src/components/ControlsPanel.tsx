@@ -524,6 +524,15 @@ export function ControlsPanel({
     });
   }
 
+  async function injectMockMessage(kind: "join" | "leave") {
+    await executeAction(kind === "join" ? "参加テスト" : "辞退テスト", async () => {
+      await api.post("/debug/mock-message", {
+        kind,
+        userName: `tester-${new Date().toLocaleTimeString()}`
+      });
+    });
+  }
+
   const refreshRuntimeHealth = useCallback(async () => {
     try {
       setHealthStatus("checking");
@@ -830,6 +839,25 @@ export function ControlsPanel({
           {healthStatus === "error" && (
             <span className="badge danger">ランタイム確認に失敗しました</span>
           )}
+        </div>
+        <div className="row">
+          <button
+            className="button secondary"
+            disabled={!canWrite}
+            onClick={() => void injectMockMessage("join")}
+          >
+            参加コメントを送信
+          </button>
+          <button
+            className="button secondary"
+            disabled={!canWrite}
+            onClick={() => void injectMockMessage("leave")}
+          >
+            辞退コメントを送信
+          </button>
+          <small style={{ color: "var(--muted)" }}>
+            テスト用: 押下で mock コメントを1件送信します
+          </small>
         </div>
         <div className="row">
           <button

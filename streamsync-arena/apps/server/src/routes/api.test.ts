@@ -66,6 +66,9 @@ class FakeService {
   clearPlatformErrors() {
     this.state.platformErrors = [];
   }
+  async ingestMessage(message: DashboardState['recentMessages'][number]) {
+    this.state.recentMessages.unshift(message);
+  }
 
   updateEffectRules(rules: typeof defaultEffectRules) {
     this.state.effectRules = rules;
@@ -179,6 +182,24 @@ test('POST /platform/errors/clear clears state', async () => {
   const response = await app.inject({
     method: 'POST',
     url: '/platform/errors/clear'
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().ok, true);
+
+  await app.close();
+});
+
+test('POST /debug/mock-message injects a join/leave message', async () => {
+  const app = await createAppWithRoutes();
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/debug/mock-message',
+    payload: {
+      kind: 'join',
+      userName: 'tester'
+    }
   });
 
   assert.equal(response.statusCode, 200);
