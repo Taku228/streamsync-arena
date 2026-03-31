@@ -54,57 +54,6 @@ const effectRuleSchema = z
     }
   });
 
-const rotationSchema = z.object({
-  enabled: z.boolean(),
-  mode: z.enum(['match-count', 'timer']),
-  rotateEveryMatches: z.number().int().min(1),
-  rotateEverySeconds: z.number().int().min(1)
-});
-
-const settingsPatchSchema = z
-  .object({
-    entryKeyword: z.string().min(1).optional(),
-    leaveKeyword: z.string().min(1).optional(),
-    banKeyword: z.string().min(1).optional(),
-    rotation: rotationSchema.partial().optional(),
-    prioritizeLowParticipation: z.boolean().optional(),
-    prioritizeMembers: z.boolean().optional(),
-    prioritizeGifters: z.boolean().optional(),
-    maxActiveParticipants: z.number().int().min(1).max(20).optional(),
-    highlightFirstTimer: z.boolean().optional()
-  })
-  .strict();
-
-const effectRuleSchema = z
-  .object({
-    id: z.string().min(1),
-    keyword: z.string().min(1),
-    effect: z.enum(['confetti', 'shake', 'flash', 'gg-burst']),
-    enabled: z.boolean(),
-    obsSceneName: z.string().min(1).optional(),
-    obsSourceName: z.string().min(1).optional(),
-    obsSourceEnabled: z.boolean().optional(),
-    obsActionType: z.enum(['scene-switch', 'source-toggle', 'both']).optional()
-  })
-  .strict()
-  .superRefine((rule, ctx) => {
-    const actionType = rule.obsActionType ?? 'both';
-
-    if ((actionType === 'scene-switch' || actionType === 'both') && !rule.obsSceneName) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'obsSceneName is required for scene-switch/both actions'
-      });
-    }
-
-    if ((actionType === 'source-toggle' || actionType === 'both') && !rule.obsSourceName) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'obsSourceName is required for source-toggle/both actions'
-      });
-    }
-  });
-
 export async function registerApiRoutes(app: FastifyInstance, service: StreamService) {
   const planTier = process.env.APP_PLAN_TIER === 'pro' ? 'pro' : 'free';
   const maxEffectRules = planTier === 'pro' ? 20 : 5;

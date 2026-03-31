@@ -105,23 +105,6 @@ export class StreamService {
     this.configureRotationTimer();
   }
 
-  async initialize() {
-    const saved = this.settingsRepository.getSettings();
-    if (saved) {
-      this.state.settings = { ...defaultSettings, ...saved };
-    }
-
-    const savedRules = this.settingsRepository.getEffectRules();
-    if (savedRules?.length) {
-      this.state.effectRules = this.normalizeEffectRules(savedRules);
-    }
-
-    await this.obsController.connect().catch((error: unknown) => {
-      this.reportPlatformError(error instanceof Error ? error : new Error('OBS connect error'));
-    });
-    this.configureRotationTimer();
-  }
-
   getState() {
     return this.state;
   }

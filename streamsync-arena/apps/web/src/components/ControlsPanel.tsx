@@ -597,6 +597,96 @@ export function ControlsPanel({
           {healthCheckedAt && <span className="badge">更新: {new Date(healthCheckedAt).toLocaleTimeString()}</span>}
           {healthStatus === 'error' && <span className="badge danger">ランタイム確認に失敗しました</span>}
         </div>
+        <div>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ marginBottom: 0 }}>運用開始チェック</h3>
+            <div className="row">
+              <span className={`badge ${onboardingProgress === 100 ? 'good' : ''}`}>
+                進捗 {onboardingProgress}%
+              </span>
+              <button className="button secondary" onClick={startSetupWizard}>クイックセットアップ</button>
+            </div>
+          </div>
+          <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+            {onboardingChecks.map((check) => (
+              <div key={check.id} className={`badge ${check.done ? 'good' : ''}`} style={{ display: 'block' }}>
+                {check.done ? '✅' : '⬜️'} {check.label}
+              </div>
+            ))}
+          </div>
+        </div>
+        {showSetupWizard && (
+          <div className="card" style={{ border: '1px solid var(--border)' }}>
+            <h3>クイックセットアップ（{wizardStep + 1}/3）</h3>
+            {wizardStep === 0 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <div className={`badge ${connectionState === 'connected' ? 'good' : 'danger'}`} style={{ display: 'block' }}>
+                  {connectionState === 'connected'
+                    ? 'サーバーに接続されています。'
+                    : 'サーバー未接続です。先に API/Socket 起動を確認してください。'}
+                </div>
+                <small style={{ color: 'var(--muted)' }}>まずは接続状態を安定させると、その後の保存/反映が確実になります。</small>
+              </div>
+            )}
+            {wizardStep === 1 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <label>
+                  参加キーワード
+                  <input value={entryKeyword} onChange={(event) => setEntryKeyword(event.target.value)} />
+                </label>
+                <label>
+                  辞退キーワード
+                  <input value={leaveKeyword} onChange={(event) => setLeaveKeyword(event.target.value)} />
+                </label>
+                <label>
+                  同時アクティブ人数
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={maxActiveParticipants}
+                    onChange={(event) => setMaxActiveParticipants(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+            )}
+            {wizardStep === 2 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <small style={{ color: 'var(--muted)' }}>
+                  最後にテンプレを1つ適用して「設定保存」を押せば、配信開始前の初期設定が完了です。
+                </small>
+                <div className="row">
+                  {streamPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      className="button secondary"
+                      onClick={() => applyStreamPreset(preset.id)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="button secondary" onClick={closeSetupWizard}>閉じる</button>
+              <button
+                className="button secondary"
+                disabled={wizardStep === 0}
+                onClick={() => setWizardStep((step) => Math.max(0, step - 1))}
+              >
+                戻る
+              </button>
+              <button
+                className="button"
+                disabled={wizardStep === 2}
+                onClick={() => setWizardStep((step) => Math.min(2, step + 1))}
+              >
+                次へ
+              </button>
+            </div>
+          </div>
+        )}
         <div className="row">
           <button className="button" disabled={!canWrite} onClick={() => void executeAction('マッチ終了', async () => api.post('/rotation/next-match'))}>
             マッチ終了
@@ -647,146 +737,6 @@ export function ControlsPanel({
               </div>
             ))}
           </div>
-          <div>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <small style={{ color: 'var(--muted)' }}>登録済みテンプレ</small>
-              <div className="row">
-                <button className="button secondary" onClick={exportTemplates}>エクスポート</button>
-                <button className="button secondary" onClick={() => importInputRef.current?.click()}>インポート</button>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept="application/json"
-                  style={{ display: "none" }}
-                  onChange={(event) => void importTemplates(event.target.files?.[0] ?? null)}
-                />
-              </div>
-            </div>
-            <div className="row" style={{ marginTop: 6 }}>
-              {effectPresets.map((preset) => (
-                <button
-                  key={preset.name}
-                  className="button secondary"
-                  onClick={() => removeTemplate(preset.name)}
-                  title={builtInPresetNames.includes(preset.name) ? '組み込みテンプレは削除不可' : 'クリックで削除'}
-                  disabled={builtInPresetNames.includes(preset.name)}
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="stack" style={{ gap: 8, marginTop: 8 }}>
-            {effectRules.map((rule, index) => (
-              <div key={rule.id} className="row" style={{ alignItems: 'flex-end' }}>
-                <label>
-                  テンプレ
-                  <select onChange={(event) => applyTemplate(index, event.target.value)} defaultValue="">
-                    <option value="" disabled>選択</option>
-                    {effectPresets.map((preset) => (
-                      <option key={preset.name} value={preset.name}>{preset.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <button className="button secondary" onClick={() => saveTemplateFromRule(index)}>テンプレ保存</button>
-
-                <label style={{ flex: 1 }}>
-                  キーワード
-                  <input value={rule.keyword} onChange={(event) => updateRule(index, { keyword: event.target.value })} />
-                </label>
-                <label>
-                  効果
-                  <select
-                    value={rule.effect}
-                    onChange={(event) =>
-                      updateRule(index, { effect: event.target.value as EffectRule['effect'] })
-                    }
-                  >
-                    <option value="confetti">confetti</option>
-                    <option value="shake">shake</option>
-                    <option value="flash">flash</option>
-                    <option value="gg-burst">gg-burst</option>
-                  </select>
-                </label>
-                <label style={{ minWidth: 180 }}>
-                  OBSシーン(任意)
-                  <input
-                    value={rule.obsSceneName ?? ''}
-                    onChange={(event) => updateRule(index, { obsSceneName: event.target.value })}
-                    placeholder="例: EffectScene"
-                    disabled={rule.obsActionType === 'source-toggle'}
-                  />
-                </label>
-                <label style={{ minWidth: 180 }}>
-                  OBSソース(任意)
-                  <input
-                    value={rule.obsSourceName ?? ''}
-                    onChange={(event) => updateRule(index, { obsSourceName: event.target.value })}
-                    placeholder="例: EffectSource"
-                    disabled={rule.obsActionType === 'scene-switch'}
-                  />
-                </label>
-                <label>
-                  OBSアクション
-                  <select
-                    value={rule.obsActionType ?? 'both'}
-                    onChange={(event) =>
-                      updateRule(index, {
-                        obsActionType: event.target.value as EffectRule['obsActionType']
-                      })
-                    }
-                  >
-                    <option value="both">both</option>
-                    <option value="scene-switch">scene-switch</option>
-                    <option value="source-toggle">source-toggle</option>
-                  </select>
-                </label>
-                <div className="row" style={{ gap: 6 }}>
-                  <button className="button secondary" onClick={() => applyObsPreset(index, 'scene-switch')}>Scene</button>
-                  <button className="button secondary" onClick={() => applyObsPreset(index, 'source-toggle')}>Source</button>
-                  <button className="button secondary" onClick={() => applyObsPreset(index, 'both')}>Both</button>
-                </div>
-                <label className="row" style={{ marginBottom: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={rule.enabled}
-                    onChange={(event) => updateRule(index, { enabled: event.target.checked })}
-                  />
-                  有効
-                </label>
-                <label className="row" style={{ marginBottom: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={rule.obsSourceEnabled ?? true}
-                    onChange={(event) => updateRule(index, { obsSourceEnabled: event.target.checked })}
-                    disabled={rule.obsActionType === 'scene-switch'}
-                  />
-                  ソースON
-                </label>
-                <button className="button secondary" onClick={() => moveRule(index, -1)} disabled={index === 0}>↑</button>
-                <button className="button secondary" onClick={() => moveRule(index, 1)} disabled={index === effectRules.length - 1}>↓</button>
-                <button className="button danger" onClick={() => removeRule(index)}>削除</button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {ruleWarnings.length > 0 && (
-          <div>
-            <h3>入力チェック</h3>
-            {ruleWarnings.map((warning) => (
-              <div key={warning} className="badge danger" style={{ display: 'block', marginBottom: 6 }}>
-                {warning}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="row">
-          <button className="button" onClick={saveSettings} disabled={saveStatus === 'saving'}>設定保存</button>
-          {saveStatus !== 'idle' && (
-            <span className={`badge ${saveStatus === 'error' ? 'danger' : 'good'}`}>{saveMessage}</span>
-          )}
         </div>
 
         <div>
