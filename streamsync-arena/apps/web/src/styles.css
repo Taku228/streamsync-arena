@@ -16,10 +16,14 @@ body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: radial-gradient(circle at top, #11203d, var(--bg));
+  min-height: 100vh;
   color: var(--text);
 }
+body.overlay-mode {
+  background: transparent !important;
+}
 a { color: inherit; }
-button, input {
+button, input, select {
   font: inherit;
 }
 .layout {
@@ -61,7 +65,7 @@ button, input {
   border-bottom: 1px solid rgba(49, 64, 95, 0.8);
   font-size: 14px;
 }
-input, .button {
+input, select, .button {
   border-radius: 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -82,25 +86,43 @@ input, .button {
   padding: 10px 0;
   border-bottom: 1px solid rgba(49, 64, 95, 0.8);
 }
+.participant-item.first-timer {
+  border-left: 3px solid var(--good);
+  padding-left: 10px;
+  background: rgba(140, 233, 154, 0.08);
+}
+.vote-option.winner {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  background: rgba(116, 192, 252, 0.1);
+}
 .overlay-root {
   min-height: 100vh;
+  width: 100vw;
   padding: 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   background: transparent;
 }
+.overlay-empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 8px 0;
+}
 .overlay-top {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 .overlay-panel {
   min-width: 280px;
-  background: rgba(10, 18, 33, 0.82);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(10, 18, 33, 0.36);
+  border: 1px solid rgba(255,255,255,0.14);
   border-radius: 18px;
   padding: 16px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
 }
 .effect-banner {
   align-self: center;
@@ -111,6 +133,14 @@ input, .button {
   border-radius: 16px;
   background: rgba(177, 151, 252, 0.18);
   border: 1px solid rgba(177, 151, 252, 0.5);
+  animation: fadeInOut 2.5s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(6px); }
+  15% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
 }
 .progress {
   height: 10px;

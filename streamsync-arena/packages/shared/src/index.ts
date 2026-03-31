@@ -1,15 +1,25 @@
 export type Platform = 'youtube' | 'twitch' | 'niconico' | 'mock';
 
-export type ChatMessage = {
+export type NormalizedChatMessage = {
   id: string;
   platform: Platform;
+  streamId: string;
   userId: string;
   userName: string;
-  text: string;
-  membership?: boolean;
-  gifted?: boolean;
-  timestamp: string;
+  displayName: string;
+  message: string;
+  timestamp: number;
+  badges?: string[];
+  isMember?: boolean;
+  isModerator?: boolean;
+  isSubscriber?: boolean;
+  isGifted?: boolean;
+  avatarUrl?: string;
+  raw?: unknown;
 };
+
+// Backward compatible alias for existing UI / service references.
+export type ChatMessage = NormalizedChatMessage;
 
 export type Participant = {
   id: string;
@@ -47,6 +57,10 @@ export type EffectRule = {
   keyword: string;
   effect: 'confetti' | 'shake' | 'flash' | 'gg-burst';
   enabled: boolean;
+  obsSceneName?: string;
+  obsSourceName?: string;
+  obsSourceEnabled?: boolean;
+  obsActionType?: 'scene-switch' | 'source-toggle' | 'both';
 };
 
 export type RotationPolicy = {
@@ -82,6 +96,7 @@ export type DashboardState = {
   settings: StreamSettings;
   effectRules: EffectRule[];
   matchCounter: number;
+  platformErrors: string[];
 };
 
 export const defaultSettings: StreamSettings = {
@@ -102,7 +117,8 @@ export const defaultSettings: StreamSettings = {
 };
 
 export const defaultEffectRules: EffectRule[] = [
-  { id: '1', keyword: 'GG', effect: 'gg-burst', enabled: true },
-  { id: '2', keyword: 'ドンマイ', effect: 'shake', enabled: true },
-  { id: '3', keyword: 'ないす', effect: 'confetti', enabled: true }
+  { id: '1', keyword: 'GG', effect: 'gg-burst', enabled: true, obsActionType: 'both' },
+  { id: '2', keyword: 'ドンマイ', effect: 'shake', enabled: true, obsActionType: 'both' },
+  { id: '3', keyword: 'ないす', effect: 'confetti', enabled: true, obsActionType: 'both' },
+  { id: '4', keyword: '8888', effect: 'flash', enabled: true, obsActionType: 'both' }
 ];
