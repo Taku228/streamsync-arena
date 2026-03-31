@@ -597,6 +597,78 @@ export function ControlsPanel({
           {healthCheckedAt && <span className="badge">更新: {new Date(healthCheckedAt).toLocaleTimeString()}</span>}
           {healthStatus === 'error' && <span className="badge danger">ランタイム確認に失敗しました</span>}
         </div>
+        {showSetupWizard && (
+          <div className="card" style={{ border: '1px solid var(--border)' }}>
+            <h3>クイックセットアップ（{wizardStep + 1}/3）</h3>
+            {wizardStep === 0 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <div className={`badge ${connectionState === 'connected' ? 'good' : 'danger'}`} style={{ display: 'block' }}>
+                  {connectionState === 'connected'
+                    ? 'サーバーに接続されています。'
+                    : 'サーバー未接続です。先に API/Socket 起動を確認してください。'}
+                </div>
+                <small style={{ color: 'var(--muted)' }}>まずは接続状態を安定させると、その後の保存/反映が確実になります。</small>
+              </div>
+            )}
+            {wizardStep === 1 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <label>
+                  参加キーワード
+                  <input value={entryKeyword} onChange={(event) => setEntryKeyword(event.target.value)} />
+                </label>
+                <label>
+                  辞退キーワード
+                  <input value={leaveKeyword} onChange={(event) => setLeaveKeyword(event.target.value)} />
+                </label>
+                <label>
+                  同時アクティブ人数
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={maxActiveParticipants}
+                    onChange={(event) => setMaxActiveParticipants(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+            )}
+            {wizardStep === 2 && (
+              <div className="stack" style={{ gap: 8 }}>
+                <small style={{ color: 'var(--muted)' }}>
+                  最後にテンプレを1つ適用して「設定保存」を押せば、配信開始前の初期設定が完了です。
+                </small>
+                <div className="row">
+                  {streamPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      className="button secondary"
+                      onClick={() => applyStreamPreset(preset.id)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="button secondary" onClick={closeSetupWizard}>閉じる</button>
+              <button
+                className="button secondary"
+                disabled={wizardStep === 0}
+                onClick={() => setWizardStep((step) => Math.max(0, step - 1))}
+              >
+                戻る
+              </button>
+              <button
+                className="button"
+                disabled={wizardStep === 2}
+                onClick={() => setWizardStep((step) => Math.min(2, step + 1))}
+              >
+                次へ
+              </button>
+            </div>
+          </div>
+        )}
         <div className="row">
           <button className="button" disabled={!canWrite} onClick={() => void executeAction('マッチ終了', async () => api.post('/rotation/next-match'))}>
             マッチ終了
@@ -647,6 +719,16 @@ export function ControlsPanel({
               </div>
             ))}
           </div>
+        )}
+
+        <div className="row">
+          <button className="button" onClick={saveSettings} disabled={saveStatus === 'saving' || !canWrite}>設定保存</button>
+          {saveStatus !== 'idle' && (
+            <span className={`badge ${saveStatus === 'error' ? 'danger' : 'good'}`}>{saveMessage}</span>
+          )}
+          {actionStatus !== 'idle' && (
+            <span className={`badge ${actionStatus === 'error' ? 'danger' : 'good'}`}>{actionMessage}</span>
+          )}
         </div>
 
         <div>
