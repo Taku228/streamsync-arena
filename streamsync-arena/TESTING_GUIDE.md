@@ -221,3 +221,113 @@ curl -X POST http://localhost:3001/billing/webhook/stripe \
 - エラーログ（サーバー/ブラウザ）
 
 この情報があると再現と修正が速くなります。
+
+---
+
+## 5. 各テストの「やり方」詳細
+
+## 5-1. 自動テスト詳細
+
+### A. サーバーユニットテスト（`2-1`）
+1. プロジェクトルートへ移動
+   ```bash
+   cd /path/to/streamsync-arena
+   ```
+2. 実行
+   ```bash
+   npm run test -w @streamsync/server
+   ```
+3. 出力確認
+   - `pass` 件数が表示される
+   - `fail 0` であることを確認
+
+### B. 型チェック（`2-2` の lint）
+1. サーバー
+   ```bash
+   npm run lint -w @streamsync/server
+   ```
+2. Web
+   ```bash
+   npm run lint -w @streamsync/web
+   ```
+3. 判定
+   - エラーが 0 で終了コード 0 なら OK
+
+### C. ビルド確認（`2-2` の build）
+1. サーバー
+   ```bash
+   npm run build -w @streamsync/server
+   ```
+2. Web
+   ```bash
+   npm run build -w @streamsync/web
+   ```
+3. 判定
+   - いずれも終了コード 0 で OK
+
+## 5-2. 手動テスト詳細
+
+### A. 3-1 基本接続
+1. 2つのターミナルを使わず、まずは1つで起動
+   ```bash
+   npm run dev
+   ```
+2. ブラウザで `http://localhost:5173` を開く
+3. 指揮官画面右上付近の接続バッジを確認
+4. 判定
+   - `サーバー接続中` なら OK
+
+### B. 3-2 参加・辞退フロー（再現性高い方法）
+1. 指揮官画面の `参加コメントを送信` をクリック
+2. `参加者管理` カードで該当ユーザーが追加されたか確認
+3. `辞退コメントを送信` をクリック
+4. 同ユーザーが待機/アクティブから外れたか確認
+5. 1セットを 3 回繰り返し、毎回期待どおり反映されることを確認
+
+### C. 3-3 エフェクトルール
+1. 既存ルールを1件編集（キーワードを分かりやすい値に変更）
+2. `設定保存` 実行
+3. 画面リロード
+4. 変更値が残っているか確認
+5. あえて OBS 必須項目を空にして保存し、バリデーションが出るか確認
+
+### D. 3-4 RBAC
+1. `apps/server/.env` に `OPERATOR_TOKEN` / `VIEWER_TOKEN` を設定
+2. `apps/web/.env` の `VITE_OPERATOR_TOKEN` へ Operator トークンを設定して起動
+3. 保存系操作が成功することを確認
+4. 次に `VITE_OPERATOR_TOKEN` を空にして Viewer 相当で起動
+5. 保存系が拒否されることを確認
+
+### E. 3-5 Billingステータス
+1. `APP_PLAN_TIER=pro` / `BILLING_ACTIVE=false` で起動
+2. 保存系操作が拒否されることを確認（402相当）
+3. `BILLING_ACTIVE=true` に切替
+4. 同操作が成功することを確認
+
+### F. 3-6 Billing Webhook
+1. `.env` に `BILLING_WEBHOOK_SECRET` を設定
+2. ガイドの `curl` を実行
+3. `ok: true` と状態更新を確認
+4. シークレットをわざと間違えて再実行し、401 を確認
+
+### G. 3-7 OBS（任意）
+1. OBS WebSocket を有効化
+2. `.env` に `OBS_WS_ENABLED=true`, `OBS_WS_URL`, `OBS_WS_PASSWORD` を設定
+3. 効果トリガー時にシーン/ソース操作が行われるか確認
+
+---
+
+## 6. テスト実施ログの残し方（推奨）
+
+テストごとに以下を 1 行で残すと、後で比較しやすくなります。
+
+```text
+[日時] [項目] [結果OK/NG] [メモ]
+```
+
+例:
+
+```text
+[2026-04-02 21:10] 3-2 参加辞退フロー OK 3回連続で反映を確認
+[2026-04-02 21:25] 3-4 RBAC OK Viewerで保存拒否を確認
+```

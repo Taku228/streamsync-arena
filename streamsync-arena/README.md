@@ -34,6 +34,11 @@ npm run dev
 - API: http://localhost:3001
 - Overlay: http://localhost:5173/overlay
 
+## 運用ドキュメント
+
+- テスト手順（詳細）: `TESTING_GUIDE.md`
+- 公開までの実行計画: `RELEASE_PLAN.md`
+
 ## 環境変数
 
 `apps/server/.env.example` を `.env` にコピーしてください。
