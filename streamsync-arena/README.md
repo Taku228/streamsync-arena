@@ -187,6 +187,7 @@ cp apps/server/.env.example apps/server/.env
    ```
 3. 最初はモックで起動（おすすめ）
    - `.env` の `CHAT_PLATFORM=mock` のまま
+   - 手動確認をしやすくする場合は `MOCK_AUTO_MESSAGES=false`
    ```bash
    npm run dev
    ```

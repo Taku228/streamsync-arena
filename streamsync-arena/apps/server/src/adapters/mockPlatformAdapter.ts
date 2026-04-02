@@ -10,10 +10,13 @@ export class MockPlatformAdapter implements PlatformAdapter {
   private startTimer?: NodeJS.Timeout;
   private handler?: (message: ChatMessage) => void | Promise<void>;
   private readonly platform: Platform = 'mock';
+  private readonly autoMessagesEnabled = process.env.MOCK_AUTO_MESSAGES === 'true';
   private readonly intervalMs = Number(process.env.MOCK_MESSAGE_INTERVAL_MS ?? 2200);
   private readonly startDelayMs = Number(process.env.MOCK_MESSAGE_START_DELAY_MS ?? 0);
 
   connect() {
+    if (!this.autoMessagesEnabled) return;
+
     const start = () => {
       this.timer = setInterval(() => {
         if (!this.handler) return;
