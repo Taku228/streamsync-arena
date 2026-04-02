@@ -255,7 +255,7 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
       userName: z.string().min(1).default('テストユーザー')
     }).parse(req.body);
     const keyword = body.kind === 'join' ? service.getState().settings.entryKeyword : service.getState().settings.leaveKeyword;
-    await service.ingestMessage({
+    void service.ingestMessage({
       id: `debug-${Date.now()}`,
       platform: 'mock',
       streamId: 'mock-debug',
@@ -265,6 +265,8 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
       message: keyword,
       timestamp: Date.now(),
       raw: { source: 'debug-endpoint' }
+    }).catch((error: unknown) => {
+      app.log.error(error);
     });
     return { ok: true };
   });
