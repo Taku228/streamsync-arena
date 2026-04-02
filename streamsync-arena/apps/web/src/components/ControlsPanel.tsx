@@ -630,6 +630,7 @@ export function ControlsPanel({
   const canWrite =
     authMe.role !== "viewer" &&
     (billingPlan.tier !== "pro" || billingStatus.active);
+  const canDebugMock = authMe.role !== "viewer";
 
   function exportTemplates() {
     const custom = effectPresets.filter(
@@ -843,14 +844,14 @@ export function ControlsPanel({
         <div className="row">
           <button
             className="button secondary"
-            disabled={!canWrite}
+            disabled={!canDebugMock}
             onClick={() => void injectMockMessage("join")}
           >
             参加コメントを送信
           </button>
           <button
             className="button secondary"
-            disabled={!canWrite}
+            disabled={!canDebugMock}
             onClick={() => void injectMockMessage("leave")}
           >
             辞退コメントを送信
@@ -858,6 +859,11 @@ export function ControlsPanel({
           <small style={{ color: "var(--muted)" }}>
             テスト用: 押下で mock コメントを1件送信します
           </small>
+          {!canDebugMock && (
+            <span className="badge danger">
+              Viewer権限ではテストコメント送信はできません
+            </span>
+          )}
         </div>
         <div className="row">
           <button

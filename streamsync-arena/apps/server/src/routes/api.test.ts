@@ -208,6 +208,26 @@ test('POST /debug/mock-message injects a join/leave message', async () => {
   await app.close();
 });
 
+test('POST /debug/mock-message returns 400 when platform is not mock', async () => {
+  process.env.CHAT_PLATFORM = 'youtube';
+  const app = await createAppWithRoutes();
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/debug/mock-message',
+    payload: {
+      kind: 'join',
+      userName: 'tester'
+    }
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().ok, false);
+
+  await app.close();
+  delete process.env.CHAT_PLATFORM;
+});
+
 test('GET /health/runtime returns runtime summary', async () => {
   const app = await createAppWithRoutes();
 
