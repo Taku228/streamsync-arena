@@ -56,7 +56,7 @@ const effectRuleSchema = z
 
 export async function registerApiRoutes(app: FastifyInstance, service: StreamService) {
   const planTier = process.env.APP_PLAN_TIER === 'pro' ? 'pro' : 'free';
-  const isMockPlatform = (process.env.CHAT_PLATFORM ?? 'mock') === 'mock';
+  const debugTestApiEnabled = process.env.NODE_ENV !== 'production' || process.env.DEBUG_TEST_API === 'true';
   const maxEffectRules = planTier === 'pro' ? 20 : 5;
   const billingWebhookSecret = process.env.BILLING_WEBHOOK_SECRET;
   const billingWebhookSigningSecret = process.env.BILLING_WEBHOOK_SIGNING_SECRET;
@@ -247,11 +247,8 @@ export async function registerApiRoutes(app: FastifyInstance, service: StreamSer
   });
 
   app.post('/debug/mock-message', async (req, reply) => {
-    if (!isMockPlatform) {
-      return reply.status(400).send({ ok: false, message: 'debug/mock-message is available only in mock platform mode' });
-    }
-    if (!requireOperator(req.headers.authorization)) {
-      return reply.status(403).send({ ok: false, message: 'operator role required' });
+    if (!debugTestApiEnabled) {
+      return reply.status(403).send({ ok: false, message: 'debug/mock-message is disabled in production' });
     }
     const body = z.object({
       kind: z.enum(['join', 'leave']),

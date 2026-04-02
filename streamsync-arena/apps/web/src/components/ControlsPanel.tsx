@@ -630,7 +630,7 @@ export function ControlsPanel({
   const canWrite =
     authMe.role !== "viewer" &&
     (billingPlan.tier !== "pro" || billingStatus.active);
-  const canDebugMock = authMe.role !== "viewer";
+  const canDebugMock = connectionState === "connected";
 
   function exportTemplates() {
     const custom = effectPresets.filter(
@@ -861,7 +861,7 @@ export function ControlsPanel({
           </small>
           {!canDebugMock && (
             <span className="badge danger">
-              Viewer権限ではテストコメント送信はできません
+              サーバー接続中のみテストコメント送信が有効です
             </span>
           )}
         </div>

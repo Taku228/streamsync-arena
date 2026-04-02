@@ -94,6 +94,7 @@ test.afterEach(() => {
   delete process.env.BILLING_TRIAL_END;
   delete process.env.BILLING_WEBHOOK_SECRET;
   delete process.env.BILLING_WEBHOOK_SIGNING_SECRET;
+  delete process.env.NODE_ENV;
 });
 
 test('POST /settings accepts valid payload', async () => {
@@ -208,8 +209,8 @@ test('POST /debug/mock-message injects a join/leave message', async () => {
   await app.close();
 });
 
-test('POST /debug/mock-message returns 400 when platform is not mock', async () => {
-  process.env.CHAT_PLATFORM = 'youtube';
+test('POST /debug/mock-message returns 403 in production mode', async () => {
+  process.env.NODE_ENV = 'production';
   const app = await createAppWithRoutes();
 
   const response = await app.inject({
@@ -221,11 +222,11 @@ test('POST /debug/mock-message returns 400 when platform is not mock', async () 
     }
   });
 
-  assert.equal(response.statusCode, 400);
+  assert.equal(response.statusCode, 403);
   assert.equal(response.json().ok, false);
 
   await app.close();
-  delete process.env.CHAT_PLATFORM;
+  delete process.env.NODE_ENV;
 });
 
 test('GET /health/runtime returns runtime summary', async () => {
